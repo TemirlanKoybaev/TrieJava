@@ -5,73 +5,100 @@ import java.util.Map;
 
 public class Trie {
 
-    private static class Uzel {
-        Map<Character, Uzel> deti = new HashMap<>();
-        boolean konecSlova = false;
+    // Узел префиксного дерева
+    private static class Node {
+        Map<Character, Node> children = new HashMap<>(); // переходы по символам
+        boolean isWordEnd = false;                       // пометка конца слова
     }
 
-    private final Uzel koren;
+    private final Node root;
 
     public Trie() {
-        koren = new Uzel();
+        root = new Node();
     }
 
-    public void insert(String word) {
+    // Добавление слова в дерево
+    public void addWord(String word) {
         if (word == null || word.isEmpty()) return;
-        Uzel tek = koren;
+
+        Node cur = root;
+
         for (int i = 0; i < word.length(); i++) {
-            char buk = word.charAt(i);
-            Uzel sled = tek.deti.get(buk);
-            if (sled == null) {
-                sled = new Uzel();
-                tek.deti.put(buk, sled);
+            char c = word.charAt(i);
+
+            // Переходим в следующего ребенка, если его нет, создаем
+            Node next = cur.children.get(c);
+            if (next == null) {
+                next = new Node();
+                cur.children.put(c, next);
             }
-            tek = sled;
+
+            cur = next;
         }
-        tek.konecSlova = true;
+
+        // Отмечаем конец слова
+        cur.isWordEnd = true;
     }
 
-    public boolean contains(String word) {
+    // Проверка существования слова
+    public boolean containsWord(String word) {
         if (word == null || word.isEmpty()) return false;
-        Uzel uz = naytiUzel(word);
-        return uz != null && uz.konecSlova;
+
+        Node node = findNode(word);
+        return node != null && node.isWordEnd;
     }
 
-    public boolean startsWith(String prefix) {
+    // Проверка существования префикса
+    public boolean hasPrefix(String prefix) {
         if (prefix == null || prefix.isEmpty()) return false;
-        Uzel uz = naytiUzel(prefix);
-        return uz != null;
+
+        return findNode(prefix) != null;
     }
 
-    public List<String> getByPrefix(String prefix) {
-        List<String> sp = new ArrayList<>();
-        if (prefix == null) return sp;
-        Uzel uz = naytiUzel(prefix);
-        if (uz == null) return sp;
+    // Получение всех слов по заданному префиксу
+    public List<String> getWordsByPrefix(String prefix) {
+        List<String> result = new ArrayList<>();
+        if (prefix == null) return result;
+
+        Node node = findNode(prefix);
+        if (node == null) return result;
+
         StringBuilder sb = new StringBuilder(prefix);
-        dfs(uz, sb, sp);
-        return sp;
+        dfs(node, sb, result);
+
+        return result;
     }
 
-    private Uzel naytiUzel(String stroka) {
-        Uzel tek = koren;
-        for (int i = 0; i < stroka.length(); i++) {
-            char buk = stroka.charAt(i);
-            Uzel sled = tek.deti.get(buk);
-            if (sled == null) return null;
-            tek = sled;
+    // Поиск узла, соответствующего строке
+    private Node findNode(String str) {
+        Node cur = root;
+
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
+            Node next = cur.children.get(c);
+
+            // Если пути нет, то нужного узла нет
+            if (next == null) return null;
+
+            cur = next;
         }
-        return tek;
+
+        return cur;
     }
 
-    private void dfs(Uzel uz, StringBuilder sb, List<String> sp) {
-        if (uz.konecSlova) {
-            sp.add(sb.toString());
+    // Глубинный обход для получения всех слов
+    private void dfs(Node node, StringBuilder sb, List<String> out) {
+
+        // Если дошли до конца слова, добавляем его
+        if (node.isWordEnd) {
+            out.add(sb.toString());
         }
-        for (Map.Entry<Character, Uzel> v : uz.deti.entrySet()) {
-            sb.append(v.getKey());
-            dfs(v.getValue(), sb, sp);
-            sb.deleteCharAt(sb.length() - 1);
+
+        // Рекурсивно обходим всех детей
+        for (Map.Entry<Character, Node> entry : node.children.entrySet()) {
+            sb.append(entry.getKey());
+            dfs(entry.getValue(), sb, out);
+            sb.deleteCharAt(sb.length() - 1); // откат символа после рекурсии
         }
     }
 }
