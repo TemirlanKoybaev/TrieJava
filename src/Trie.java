@@ -1,104 +1,120 @@
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class Trie {
 
-    // Узел префиксного дерева
+    // Узел дерева
     private static class Node {
-        Map<Character, Node> children = new HashMap<>(); // переходы по символам
-        boolean isWordEnd = false;                       // пометка конца слова
+        Node[] children = new Node[26]; // ссылки на следующие буквы
+        boolean isEnd;                  // флаг конца слова
     }
 
     private final Node root;
 
     public Trie() {
-        root = new Node();
+        root = new Node(); // изначально пустой корень
     }
 
-    // Добавление слова в дерево
-    public void addWord(String word) {
+    // переводим букву в индекс массива 0..25
+    private int toIndex(char c) {
+        return c - 'a';
+    }
+
+    // вставка нового слова
+    public void insert(String word) {
         if (word == null || word.isEmpty()) return;
 
+        word = word.toLowerCase();
         Node cur = root;
 
         for (int i = 0; i < word.length(); i++) {
-            char c = word.charAt(i);
+            int id = toIndex(word.charAt(i));
 
-            // Переходим в следующего ребенка, если его нет, создаем
-            Node next = cur.children.get(c);
-            if (next == null) {
-                next = new Node();
-                cur.children.put(c, next);
+            // пропускаем символы вне диапазона a-z
+            if (id < 0 || id >= 26) continue;
+
+            // создаём новый узел, если его не было
+            if (cur.children[id] == null) {
+                cur.children[id] = new Node();
             }
-
-            cur = next;
+            cur = cur.children[id];
         }
 
-        // Отмечаем конец слова
-        cur.isWordEnd = true;
+        // помечаем, что слово заканчивается здесь
+        cur.isEnd = true;
     }
 
-    // Проверка существования слова
-    public boolean containsWord(String word) {
+    // проверка полного совпадения слова
+    public boolean contains(String word) {
         if (word == null || word.isEmpty()) return false;
 
-        Node node = findNode(word);
-        return node != null && node.isWordEnd;
+        word = word.toLowerCase();
+        Node cur = root;
+
+        for (int i = 0; i < word.length(); i++) {
+            int id = toIndex(word.charAt(i));
+            if (id < 0 || id >= 26) return false;
+            if (cur.children[id] == null) return false;
+            cur = cur.children[id];
+        }
+
+        return cur.isEnd; // важно, иначе это только префикс
     }
 
-    // Проверка существования префикса
-    public boolean hasPrefix(String prefix) {
+    // проверяет, существует ли хоть одно слово с таким префиксом
+    public boolean startsWith(String prefix) {
         if (prefix == null || prefix.isEmpty()) return false;
 
-        return findNode(prefix) != null;
+        prefix = prefix.toLowerCase();
+        Node cur = root;
+
+        for (int i = 0; i < prefix.length(); i++) {
+            int id = toIndex(prefix.charAt(i));
+            if (id < 0 || id >= 26) return false;
+            if (cur.children[id] == null) return false;
+            cur = cur.children[id];
+        }
+
+        return true;
     }
 
-    // Получение всех слов по заданному префиксу
-    public List<String> getWordsByPrefix(String prefix) {
+    // возвращает список всех слов, начинающихся с prefix
+    public List<String> getByPrefix(String prefix) {
         List<String> result = new ArrayList<>();
-        if (prefix == null) return result;
+        if (prefix == null || prefix.isEmpty()) return result;
 
-        Node node = findNode(prefix);
-        if (node == null) return result;
+        prefix = prefix.toLowerCase();
+        Node cur = root;
 
+        // доходим до узла, соответствующего последней букве префикса
+        for (int i = 0; i < prefix.length(); i++) {
+            int id = toIndex(prefix.charAt(i));
+            if (id < 0 || id >= 26) return result;
+            if (cur.children[id] == null) return result;
+            cur = cur.children[id];
+        }
+
+        // собираем слова снизу
         StringBuilder sb = new StringBuilder(prefix);
-        dfs(node, sb, result);
+        collectWords(cur, sb, result);
 
         return result;
     }
 
-    // Поиск узла, соответствующего строке
-    private Node findNode(String str) {
-        Node cur = root;
-
-        for (int i = 0; i < str.length(); i++) {
-            char c = str.charAt(i);
-            Node next = cur.children.get(c);
-
-            // Если пути нет, то нужного узла нет
-            if (next == null) return null;
-
-            cur = next;
+    // DFS по поддереву, собираем строки
+    private void collectWords(Node node, StringBuilder sb, List<String> list) {
+        // если здесь конец слова — добавляем
+        if (node.isEnd) {
+            list.add(sb.toString());
         }
 
-        return cur;
-    }
-
-    // Глубинный обход для получения всех слов
-    private void dfs(Node node, StringBuilder sb, List<String> out) {
-
-        // Если дошли до конца слова, добавляем его
-        if (node.isWordEnd) {
-            out.add(sb.toString());
-        }
-
-        // Рекурсивно обходим всех детей
-        for (Map.Entry<Character, Node> entry : node.children.entrySet()) {
-            sb.append(entry.getKey());
-            dfs(entry.getValue(), sb, out);
-            sb.deleteCharAt(sb.length() - 1); // откат символа после рекурсии
+        // обходим всех детей
+        for (int i = 0; i < 26; i++) {
+            if (node.children[i] != null) {
+                sb.append((char) ('a' + i));                // добавляем букву
+                collectWords(node.children[i], sb, list);   // углубляемся
+                sb.deleteCharAt(sb.length() - 1);           // откат назад
+            }
         }
     }
 }
